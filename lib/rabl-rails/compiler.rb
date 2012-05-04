@@ -1,11 +1,9 @@
-module RablFastJson
+module RablRails
   #
   # Class that will compile RABL source code into a hash
   # representing data structure
   #
   class Compiler
-    include Helpers
-
     def initialize
       @glue_count = 0
     end
@@ -17,15 +15,6 @@ module RablFastJson
     def compile_source(source)
       @template = CompiledTemplate.new
       instance_eval(source)
-      @template
-    end
-
-    #
-    # Same as compile_source but from a block
-    #
-    def compile_block(&block)
-      @template = {}
-      instance_eval(&block)
       @template
     end
 
@@ -49,7 +38,7 @@ module RablFastJson
     #
     def collection(data, options = {})
       object(data)
-      @template.root_name = options[:root] if root_given?(options)
+      @template.root_name = options[:root] if options[:root]
     end
 
     #
@@ -80,14 +69,14 @@ module RablFastJson
     #   child(:@posts, :root => :posts) { attribute :id }
     #   child(:posts, :partial => 'posts/base')
     #
-    def child(name_or_data, options = {}, &block)
+    def child(name_or_data, options = {})
       data, name = extract_data_and_name(name_or_data)
-      name = options[:root] if root_given?(options)
-      if partial_given?(options)
+      name = options[:root] if options[:root]
+      if options[:partial]
         template = Library.instance.get(options[:partial])
         @template[name] = template.merge!(:_data => data)
-      else
-        _compile_sub_template(name, data, &block)
+      elsif block_given?
+        @template[name] = sub_compile(data) { yield }
       end
     end
 
@@ -96,11 +85,11 @@ module RablFastJson
     # Example:
     #   glue(:@user) { attribute :name }
     #
-    def glue(data, &block)
+    def glue(data)
       return unless block_given?
       name = :"_glue#{@glue_count}"
       @glue_count += 1
-      _compile_sub_template(name, data, &block)
+      @template[name] = sub_compile(data) { yield }
     end
 
     #
@@ -158,11 +147,14 @@ module RablFastJson
         name_or_data
       end
     end
-
-    def _compile_sub_template(name, data, &block) #:nodoc:
-      compiler = Compiler.new
-      template = compiler.compile_block(&block)
-      @template[name] = template.merge!(:_data => data)
+    
+    def sub_compile(data)
+      return {} unless block_given?
+      old_template, @template = @template, {}
+      yield
+      @template.merge!(:_data => data)
+    ensure
+      @template = old_template
     end
   end
 end
