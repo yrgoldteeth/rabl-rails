@@ -62,6 +62,12 @@ module RablRails
             else # child
               object.respond_to?(:each) ? render_collection(object, current_value) : render_resource(object, current_value)
             end
+          when Fragment
+            cache_output = Rails.cache.fetch(value.expand_cache_key(data), value.options) do
+              data.respond_to?(:each) ? render_collection(data, value.compiled_source) : render_resource(data, value.compiled_source)
+            end
+            output.merge!(cache_output)
+            next output
           end
           output[key] = out
           output

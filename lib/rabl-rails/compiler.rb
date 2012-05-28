@@ -6,6 +6,7 @@ module RablRails
   class Compiler
     def initialize
       @glue_count = 0
+      @cache_count = 0
     end
 
     #
@@ -124,6 +125,17 @@ module RablRails
       t = Library.instance.get(path)
       @template.merge!(t.source)
     end
+    
+    #
+    # cache key: ->(resource) { |resource| resource.cache_key }, expires_in: 1800
+    #
+    def cache(options = {}, &block)
+      return unless block_given?
+      key = options.delete(:key)
+      source = sub_compile { yield }
+      @template[:"_cache#{@cache_count}"] = Fragment.new(key, source, options)
+      @cache_count += 1
+    end
 
     protected
 
@@ -148,11 +160,11 @@ module RablRails
       end
     end
     
-    def sub_compile(data)
+    def sub_compile(data = nil)
       return {} unless block_given?
       old_template, @template = @template, {}
       yield
-      @template.merge!(:_data => data)
+      data ? @template.merge!(:_data => data) : @template
     ensure
       @template = old_template
     end

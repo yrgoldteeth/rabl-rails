@@ -1,8 +1,7 @@
 require 'active_support/cache'
 
-module RablFastJson
+module RablRails
   class Fragment
-
     attr_reader :compiled_source, :options
 
     def initialize(key, source, options = {})
@@ -12,16 +11,18 @@ module RablFastJson
     end
 
     def expand_cache_key(data)
-      @key.call(data)
-    end
-
-    def fetch_and_render
-      Rails.cache.fetch(key)
+      if @key
+        @key.respond_to?(:call) ? @key.call(data) : @key
+      else
+        ActiveSupport::Cache.expand_cache_key(data, 'rabl')
+      end
     end
   end
 end
 
-
+#
+# cache key: ->(resource) { |resource| resource.cache_key }, expires_in: 1800
+#
 # def cache(options = {}, &block)
 #   return unless block_given?
 #   key = options.delete(:key)

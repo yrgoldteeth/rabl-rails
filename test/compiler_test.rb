@@ -149,4 +149,14 @@ class CompilerTest < ActiveSupport::TestCase
     assert_equal({ :user => { :_data => :@user, :id => :id } }, t.source)
     assert_equal false, t.data
   end
+  
+  test "cache are compiled to fragment" do
+    t = @compiler.compile_source(%{
+      cache do
+        attributes :name
+      end
+    })
+    assert_instance_of RablRails::Fragment, t.source[:_cache0]
+    assert_equal({ :name => :name }, t.source[:_cache0].compiled_source)
+  end
 end
